@@ -1,23 +1,20 @@
 ---
 title: "exercise-12"
 output: html_document
+author: "Jamie Wiener"
 date: "2024-04-13"
 ---
 
-```{r, warning = FALSE}
+```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
 library(dplyr)
 library(mosaic)
 library(readr)
 library(skimr)
-library(broom)
-library(car)
-library(manipulate)
 library(ggplot2)
-library(infer)
-library(modelr)
 library(MASS)
 library(AICcmodavg)
+library(MuMIn)
 ```
 
 ```{r}
@@ -40,7 +37,7 @@ print(skim_num$skim_variable) #Which variables are numeric
 print(length(skim_num$skim_variable)) #How many variables are numeric
 ```
 
-...and the following variables (total = 4) are categorical:
+* the following variables (total = 4) are categorical:
 
 ```{r}
 skim_char <- skim |> filter(skim_type == "character")
@@ -166,7 +163,7 @@ m6 <- lm(`wean mass(g)` ~ `mass(g)`, data = d, na.action = na.exclude)
 d$relWeaningMass <- residuals(m6)
 ```
 
-## Step
+## Step 5
 
 Plot residuals of max lifespan (relLife) in relation to Order. 
 
@@ -182,6 +179,7 @@ p1 <- ggplot(data = d, aes(x = order, y = relLife)) +
 
 Order Primates has the highest residual lifespan
 
+---
 
 Plot residuals of newborn mass (relNewbornMass) in relation to Order. 
 
@@ -197,6 +195,7 @@ p2 <- ggplot(data = d, aes(x = order, y = relNewbornMass)) +
 
 Order Macroscelidea has the highest residual newborn mass.
 
+---
 
 Plot residuals of weaning mass (relWeaningMass) in relation to Order.
 
@@ -270,6 +269,34 @@ max. life(mo) ~ gestation(mo) + newborn(g) + weaning(mo) + wean mass(g) + litter
 
 ---
 
+Calculate and plot the model-averaged coefficients and their CIs across this set of top models.
+
+```{r} 
+#Calculating the model-averaged coefficients using {MuMIn}
+
+global <- lm(`max. life(mo)` ~ `gestation(mo)` + `newborn(g)` + `weaning(mo)` + 
+    `wean mass(g)` + `litters/year` + `mass(g)`, data = d_new, na.action = "na.fail")
+
+mods <- dredge(global, beta = "none", m.lim = c(0, 6))
+
+(mods.avg <- summary(model.avg(mods, subset = delta < 4, fit = TRUE))) #Looking at "top" models with delta AICc less than 4
+
+```
+
+```{r}
+#Calculating CIs for model-averaged coefficients
+
+(confint(mods.avg))
+```
+
+```{r}
+#Plotting the model-averaged coefficients and their CIs 
+
+(plot(mods.avg, full = TRUE, intercept = FALSE))
+```
+
+<hr style="border:2px solid black">
+
 Run models and a model selection process to evaluate what variables best predict AFR(mo) from the set of the following predictors: gestation(mo), newborn(g), weaning(mo), wean mass(g), litters/year, and overall body mass(g).
 
 ```{r}
@@ -324,4 +351,26 @@ AFR(mo) ~ gestation(mo) + weaning(mo) + litters/year + mass(g)
 
 Calculate and plot the model-averaged coefficients and their CIs across this set of top models.
 
+```{r} 
+#Calculating the model-averaged coefficients using {MuMIn}
+
+global2 <- lm(`AFR(mo)` ~ `gestation(mo)` + `newborn(g)` + `weaning(mo)` + 
+    `wean mass(g)` + `litters/year` + `mass(g)`, data = d_new, na.action = "na.fail")
+
+mods2 <- dredge(global2, beta = "none", m.lim = c(0, 6))
+
+(mods.avg2 <- summary(model.avg(mods2, subset = delta < 4, fit = TRUE))) #Looking at "top" models with delta AICc less than 4
+```
+
+```{r}
+#Calculating CIs for model-averaged coefficients
+
+(confint(mods.avg2))
+```
+
+```{r}
+#Plotting the model-averaged coefficients and their CIs
+
+(plot(mods.avg2, full = TRUE, intercept = FALSE))
+```
 
