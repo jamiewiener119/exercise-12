@@ -16,6 +16,8 @@ library(manipulate)
 library(ggplot2)
 library(infer)
 library(modelr)
+library(MASS)
+library(AICcmodavg)
 ```
 
 ```{r}
@@ -69,7 +71,7 @@ d <- d |> mutate(
 Drop the variables litter size and refs.
 
 ```{r}
-d <- d |>  select(-`litter size`, -`refs`)
+d <- d |>  dplyr::select(-`litter size`, -`refs`)
 ```
 
 ## Step 3
@@ -169,39 +171,157 @@ d$relWeaningMass <- residuals(m6)
 Plot residuals of max lifespan (relLife) in relation to Order. 
 
 ```{r}
-pm1 <- ggplot(data = d, aes(x = order, y = relLife)) + 
-  geom_point() +
+p1 <- ggplot(data = d, aes(x = order, y = relLife)) + 
+  geom_boxplot() + 
   theme(axis.text.x = element_text(angle = 90)) +
   ggtitle("Residuals of Max Lifespan in Relation to Order ") +
   ylab("Residuals") + 
   xlab("Order") 
-
-(pm1)
+(p1)
 ```
 
-Which mammalian orders have the highest residual lifespan?
+Order Primates has the highest residual lifespan
 
-Plot residuals of max lifespan (relLife) in relation to Order. 
-
-```{r}
-
-```
-
-Which mammalian orders have the highest residual lifespan?
 
 Plot residuals of newborn mass (relNewbornMass) in relation to Order. 
 
 ```{r}
-
+p2 <- ggplot(data = d, aes(x = order, y = relNewbornMass)) + 
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  ggtitle("Residuals of Newborn Mass in Relation to Order ") +
+  ylab("Residuals") + 
+  xlab("Order") 
+(p2)
 ```
 
-Which mammalian orders have the have highest residual newborn mass?
+Order Macroscelidea has the highest residual newborn mass.
+
 
 Plot residuals of weaning mass (relWeaningMass) in relation to Order.
 
 ```{r}
-
+p3 <- ggplot(data = d, aes(x = order, y = relWeaningMass)) + 
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  ggtitle("Residuals of Weaning Mass in Relation to Order ") +
+  ylab("Residuals") + 
+  xlab("Order") 
+(p3)
 ```
 
-Which mammalian orders have the have highest relative weaning mass?
+Order Perissodactyla has the highest residual weaning mass.
+
+## Step 6
+
+Run models and a model selection process to evaluate what variables best predict max. life(mo) from the set of the following predictors: gestation(mo), newborn(g), weaning(mo), wean mass(g), litters/year, and overall body mass(g).
+
+```{r}
+d_new <- d |> drop_na(`max. life(mo)`,`AFR(mo)`,`gestation(mo)`,`newborn(g)`,`weaning(mo)`,`wean mass(g)`,`litters/year`,`mass(g)`)
+
+m_full1 <- lm(data = d_new, `max. life(mo)` ~ `gestation(mo)` + `newborn(g)` + `weaning(mo)` + `wean mass(g)` + `litters/year` + `mass(g)`)
+
+s1 <- stepAIC(m_full1, scope = .~., direction = "both", trace = TRUE)
+(s1)
+```
+
+Based on AIC values calculated in the above step-wise model selection using {MASS}, the variables that best predict max. life(mo) are gestation(mo), weaning(mo), litters/year, and mass(g).
+
+```{r}
+# I am not sure if there is a more efficient way to do this rather than doing a model selection process by hand?
+
+#Backward selection
+
+ma <- lm(`max. life(mo)` ~ `gestation(mo)` + `newborn(g)` + `weaning(mo)` + 
+    `wean mass(g)` + `litters/year` + `mass(g)`, data = d_new)
+
+drop1(ma, test = "F")
+
+mb <- update(ma, . ~ . - `weaning(mo)`)
+
+drop1(mb, test = "F")
+
+mc <- update(mb, . ~ . - `wean mass(g)`)
+
+drop1(mc, test = "F")
+
+md <- update(mc, . ~ . - `newborn(g)`)
+
+drop1(md, test = "F")
+
+me <- update(md, . ~ . - `mass(g)`)
+
+drop1(me, test = "F")
+
+mf <- update(me, . ~ . - `litters/year`)
+
+drop1(mf, test = "F")
+
+mg <- update(mf, . ~ . - `gestation(mo)`)
+
+(aictab(list(ma, mb, mc,md,me,mf,mg), c("ma", "mb", "mc","md","me","mf","mg")))
+```
+
+The best model overall based on AICc is:
+
+max. life(mo) ~ gestation(mo) + newborn(g) + weaning(mo) + wean mass(g) + litters/year + mass(g)
+
+4 models have a delta AICc of 4 or less. Gestation(mo), litters/year, and mass(g) appear in all "top" models.
+
+---
+
+Run models and a model selection process to evaluate what variables best predict AFR(mo) from the set of the following predictors: gestation(mo), newborn(g), weaning(mo), wean mass(g), litters/year, and overall body mass(g).
+
+```{r}
+m_full2 <- lm(data = d_new, `AFR(mo)` ~ `gestation(mo)` + `newborn(g)` + `weaning(mo)` + `wean mass(g)` + `litters/year` + `mass(g)`)
+
+s2 <- stepAIC(m_full2, scope = .~., direction = "both", trace = TRUE)
+(s2)
+```
+
+Based on AIC values calculated in the above step-wise model selection using {MASS}, the variables that best predict AFR(mo) are gestation(mo), weaning(mo), litters/year, and mass(g).
+
+```{r}
+#Backward selection
+
+ma2 <- lm(`AFR(mo)` ~ `gestation(mo)` + `newborn(g)` + `weaning(mo)` + 
+    `wean mass(g)` + `litters/year` + `mass(g)`, data = d_new)
+
+drop1(ma2, test = "F")
+
+mb2 <- update(ma2, . ~ . - `newborn(g)`)
+
+drop1(mb2, test = "F")
+
+mc2 <- update(mb2, . ~ . - `wean mass(g)`)
+
+drop1(mc2, test = "F")
+
+md2 <- update(mc2, . ~ . - `mass(g)`)
+
+drop1(md2, test = "F")
+
+me2 <- update(md2, . ~ . - `weaning(mo)`)
+
+drop1(me2, test = "F")
+
+mf2 <- update(me2, . ~ . - `gestation(mo)`)
+
+drop1(mf2, test = "F")
+
+mg2 <- update(mf2, . ~ . - `litters/year`)
+
+(aictab(list(ma2, mb2, mc2,md2,me2,mf2,mg2), c("ma2", "mb2", "mc2","md2","me2","mf2","mg2")))
+```
+
+The best model overall based on AICc is:
+
+AFR(mo) ~ gestation(mo) + weaning(mo) + litters/year + mass(g)
+
+4 models have a delta AICc of 4 or less. Gestation(mo) and litters/year appear in all "top" models.
+
+---
+
+Calculate and plot the model-averaged coefficients and their CIs across this set of top models.
+
 
